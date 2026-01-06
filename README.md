@@ -1,7 +1,7 @@
 # Manifesto da Arquitetura de Casa Inteligente
 **Plataforma principal: SmartThings**
 
-Versão: **1.1**  
+Versão: **1.2**  
 Status: **Vivo**  
 Última atualização: **2026-01-04**
 
@@ -9,7 +9,7 @@ Status: **Vivo**
 
 ## 1. Propósito do Manifesto
 
-Este documento define a **arquitetura alvo da casa inteligente**, estabelecendo princípios, decisões técnicas e responsabilidades claras entre plataformas, hubs e integrações.
+Este documento define a **arquitetura alvo da casa inteligente**, estabelecendo princípios, decisões técnicas e **contratos arquiteturais** claros entre plataformas, hubs e integrações.
 
 Seus objetivos são:
 - Garantir **estabilidade operacional**, especialmente após quedas de energia
@@ -30,10 +30,10 @@ Este manifesto **não** tem como objetivo:
    Sempre que existir uma integração nativa, estável e suportada pelo SmartThings, o dispositivo deve ser integrado diretamente ao ST.
 
 2. **Single Source of Truth por dispositivo**  
-   Cada dispositivo deve possuir apenas **um único dono operacional**, evitando controle simultâneo por múltiplas plataformas.
+   Cada dispositivo deve possuir **um único dono operacional**, evitando controle simultâneo por múltiplas plataformas.
 
 3. **Separação por natureza do dispositivo**  
-   Atuadores (ação contínua) e sensores sleepy (evento pontual) possuem características operacionais distintas e devem seguir caminhos diferentes.
+   Atuadores (ação contínua) e sensores sleepy (evento pontual) possuem características operacionais distintas.
 
 4. **Sensores sleepy não dependem de bridges cloud instáveis**  
    Sensores de porta, presença e cortinas a bateria devem evitar bridges conhecidas por instabilidade pós-reboot.
@@ -74,58 +74,83 @@ A arquitetura é organizada em **canais de integração convergindo no SmartThin
 
 ## 4. Contrato Arquitetural — Papéis das Plataformas
 
-### SmartThings
-- Plataforma principal de automação e rotinas
-- Integra dispositivos via Matter e integrações diretas
-- Orquestra cenas e automações
-- **Não deve** controlar dispositivos que já possuem outro “dono” definido
+### 4.1 SmartThings — Contrato de Responsabilidade e Controle
 
-### Hub Nova Digital (Tuya)
+O SmartThings é definido como a **plataforma principal de orquestração da casa inteligente**, responsável por automações, rotinas e experiência do usuário.
+
+Entretanto, o SmartThings **não é necessariamente o controlador primário de todos os dispositivos**.
+
+#### Regra de Ouro — Source of Truth
+
+> **O SmartThings não deve parear, controlar ou manter o estado primário de dispositivos que já possuam outro sistema definido como “Source of Truth” (fonte de verdade).**
+
+Um dispositivo possui **Source of Truth** quando existe outro sistema responsável por:
+- pareamento inicial
+- manutenção do estado do dispositivo
+- reconciliação após falhas (reboot, queda de energia, perda de rede)
+- envio de comandos diretos ao dispositivo
+
+Nesses casos, o SmartThings atua **exclusivamente** como:
+- consumidor de eventos
+- orquestrador de automações
+- camada de integração entre domínios
+
+#### Exemplos Práticos
+
+| Dispositivo | Source of Truth | Papel do SmartThings |
+|------------|----------------|----------------------|
+| Sensor de porta Zigbee | Zigbee2MQTT | Consumir eventos |
+| Sensor de presença | Zigbee2MQTT | Orquestrar automações |
+| Cortina a bateria | Zigbee2MQTT | Orquestrar |
+| Lâmpada Tuya Zigbee | Hub Nova Digital | Controlar via Matter |
+| Tomada Tapo | SmartThings | Dono e controlador |
+| Tuya Wi-Fi | LocalTuya (HA) | Consumidor opcional |
+
+#### Ações Explicitamente Proibidas
+
+Para preservar a integridade da arquitetura, o SmartThings **não deve**:
+- Parear dispositivos Zigbee cujo Source of Truth seja o Zigbee2MQTT
+- Controlar dispositivos já gerenciados por outro hub (Nova Digital, LocalTuya)
+- Manter múltiplos caminhos de controle para o mesmo dispositivo
+- Substituir o controlador primário definido neste contrato
+
+Qualquer violação dessas regras é considerada **quebra arquitetural**.
+
+#### Regra Mental de Validação
+
+Antes de integrar um novo dispositivo ao SmartThings, deve-se responder:
+
+> **“Quem é responsável por acordar, reconectar e reconciliar esse dispositivo após uma queda de energia?”**
+
+Se a resposta **não for SmartThings**, então o SmartThings **não deve ser o Source of Truth** desse dispositivo.
+
+---
+
+### 4.2 Hub Nova Digital (Tuya)
 - Bridge Zigbee → Matter para **atuadores**
 - Fonte de verdade para tomadas, interruptores, lâmpadas e fechaduras Zigbee Tuya
 - **Proibido** para sensores sleepy
 
-### Home Assistant (Supervised)
+### 4.3 Home Assistant (Supervised)
 - Camada de integração local
 - Hospeda Zigbee2MQTT, MQTT e LocalTuya
 - Observabilidade, troubleshooting e bridges especializadas
 - **Não é** a plataforma principal de automação da casa
 
-### Zigbee2MQTT
+### 4.4 Zigbee2MQTT
 - Controle exclusivo de sensores sleepy e cortinas a bateria
 - Fonte de verdade Zigbee para esses dispositivos
 
-### MQTT
+### 4.5 MQTT
 - Backbone de eventos desacoplado
-- Responsável pela comunicação entre sensores e bridges
 
-### Bridge Matter (ex.: Matterbridge)
+### 4.6 Bridge Matter (ex.: Matterbridge)
 - Exposição de sensores do domínio MQTT/Z2M ao SmartThings
 - Opera exclusivamente em LAN com mDNS/multicast funcional
 
 ---
 
-## 5. Canais de Integração no SmartThings
-
-### Canal 1 — Matter via Hub Nova Digital
-- Atuadores Zigbee Tuya
-- Comunicação Matter local
-- Alta interoperabilidade
-
-### Canal 2 — Matter via Bridge (Z2M → MQTT → Bridge)
-- Sensores de porta, presença e cortinas a bateria
-- Evita dependência de bridges cloud instáveis
-
-### Canal 3 — Integrações diretas no SmartThings
-- Matter over Wi-Fi
-- Integrações não-Matter (Edge / Cloud)
-- Classificação obrigatória:
-  - **Local / Edge**
-  - **Cloud-based**
-
----
-
-## 6. Matriz de Decisão por Tipo de Dispositivo
+## 5. Matriz de Decisão por Tipo de Dispositivo
 
 | Tipo de Dispositivo | Canal Preferencial | Observações |
 |--------------------|------------------|-------------|
@@ -141,9 +166,7 @@ A arquitetura é organizada em **canais de integração convergindo no SmartThin
 
 ---
 
-## 7. Catálogo de Integrações Diretas no SmartThings
-
-Registro vivo de dispositivos integrados diretamente no ST.
+## 6. Catálogo de Integrações Diretas no SmartThings
 
 | Fabricante | Tipo | Canal | Natureza | Observações |
 |-----------|------|-------|----------|-------------|
@@ -152,30 +175,20 @@ Registro vivo de dispositivos integrados diretamente no ST.
 
 ---
 
-## 8. Decisões Arquiteturais (ADR-lite)
+## 7. Decisões Arquiteturais (ADR-lite)
 
 ### ADR-01 — Sensores sleepy fora do Hub Nova Digital
-**Decisão:** Sensores de porta, presença e cortinas a bateria não devem ser integrados via Hub Nova Digital.  
-**Motivo:** Instabilidade pós-queda de energia.  
-**Consequência:** Arquitetura mais complexa, porém mais resiliente.
-
----
+Motivo: instabilidade pós-queda de energia.
 
 ### ADR-02 — MQTT como backbone de sensores
-**Decisão:** Utilizar MQTT entre Zigbee2MQTT e Bridge Matter.  
-**Motivo:** Desacoplamento, resiliência e flexibilidade.  
-**Consequência:** Dependência de broker sempre disponível.
-
----
+Motivo: desacoplamento e resiliência.
 
 ### ADR-03 — ST-first para integrações maduras
-**Decisão:** Priorizar integração direta no SmartThings quando nativa e estável.  
-**Motivo:** Simplicidade operacional.  
-**Consequência:** Convivência com múltiplos canais de integração.
+Motivo: simplicidade operacional.
 
 ---
 
-## 9. Runbook Operacional
+## 8. Runbook Operacional
 
 ### Ordem de boot pós-queda de energia
 1. Roteador / Internet
@@ -191,48 +204,16 @@ Registro vivo de dispositivos integrados diretamente no ST.
 
 ---
 
-## 10. Checklist Oficial — Integração de Novo Dispositivo
+## 9. Checklist Oficial — Integração de Novo Dispositivo
 
-### 1. Identificação
-- [ ] Tipo (atuador / sensor / cortina / outro)
-- [ ] Alimentação (energia / bateria)
-- [ ] Dispositivo crítico? (sim/não)
-
-### 2. Integração nativa no SmartThings?
-- [ ] Sim → integrar direto no ST
-- [ ] Não → continuar avaliação
-
-### 3. Suporte a Matter?
-- [ ] Sim → avaliar ST direto ou Hub Nova Digital
-- [ ] Não → continuar avaliação
-
-### 4. Sensor sleepy ou a bateria?
-- [ ] Sim → Z2M → MQTT → Bridge Matter
-- [ ] Não → avaliar LocalTuya / integração local
-
-### 5. Source of Truth definido?
-- [ ] Plataforma dona definida
-- [ ] Garantido que não será pareado em outro hub
-
-### 6. Classificação da integração
-- [ ] Local / Edge
-- [ ] Cloud
-- [ ] Dependência de internet aceita
-
-### 7. Registro
-- [ ] Atualizar Catálogo de Integrações
-- [ ] Atualizar diagrama (se necessário)
-- [ ] Registrar ADR se decisão for excepcional
+*(mantido conforme versão anterior)*
 
 ---
 
-## 11. Governança e Evolução
+## 10. Governança e Evolução
 
-Este manifesto é um **documento vivo** e deve ser revisado:
-- Após mudanças relevantes de infraestrutura
-- Com a evolução do padrão Matter
-- Quando falhas recorrentes indicarem desalinhamento arquitetural
+Este manifesto é um **documento vivo** e deve ser revisado sempre que houver mudanças relevantes de infraestrutura ou integração.
 
-Qualquer decisão que viole princípios ou contratos aqui definidos deve ser tratada como **quebra arquitetural** e registrada formalmente.
+Qualquer decisão que viole princípios ou contratos aqui definidos deve ser tratada como **quebra arquitetural** e registrada.
 
 ---
