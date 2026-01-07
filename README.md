@@ -1,7 +1,7 @@
 # Manifesto da Arquitetura de Casa Inteligente
 **Plataforma principal: SmartThings**
 
-Versão: **1.2**  
+Versão: **1.5**  
 Status: **Vivo**  
 Última atualização: **2026-01-04**
 
@@ -30,7 +30,7 @@ Este manifesto **não** tem como objetivo:
    Sempre que existir uma integração nativa, estável e suportada pelo SmartThings, o dispositivo deve ser integrado diretamente ao ST.
 
 2. **Single Source of Truth por dispositivo**  
-   Cada dispositivo deve possuir **um único dono operacional**, evitando controle simultâneo por múltiplas plataformas.
+   Cada dispositivo deve possuir apenas **um único dono operacional**, evitando controle simultâneo por múltiplas plataformas.
 
 3. **Separação por natureza do dispositivo**  
    Atuadores (ação contínua) e sensores sleepy (evento pontual) possuem características operacionais distintas.
@@ -72,6 +72,17 @@ A arquitetura é organizada em **canais de integração convergindo no SmartThin
 
 ---
 
+### Diagrama da Arquitetura Atual
+
+A figura abaixo representa a **arquitetura atual conforme este manifesto**, evidenciando:
+- o SmartThings como núcleo de orquestração
+- os diferentes canais de entrada (Matter, Bridge, integrações diretas)
+- a separação clara de responsabilidades (Source of Truth)
+
+![Arquitetura alvo da casa inteligente](./arquitetura-alvo.png)
+
+---
+
 ## 4. Contrato Arquitetural — Papéis das Plataformas
 
 ### 4.1 SmartThings — Contrato de Responsabilidade e Controle
@@ -108,7 +119,7 @@ Nesses casos, o SmartThings atua **exclusivamente** como:
 
 #### Ações Explicitamente Proibidas
 
-Para preservar a integridade da arquitetura, o SmartThings **não deve**:
+O SmartThings **não deve**:
 - Parear dispositivos Zigbee cujo Source of Truth seja o Zigbee2MQTT
 - Controlar dispositivos já gerenciados por outro hub (Nova Digital, LocalTuya)
 - Manter múltiplos caminhos de controle para o mesmo dispositivo
@@ -116,57 +127,56 @@ Para preservar a integridade da arquitetura, o SmartThings **não deve**:
 
 Qualquer violação dessas regras é considerada **quebra arquitetural**.
 
-#### Regra Mental de Validação
-
-Antes de integrar um novo dispositivo ao SmartThings, deve-se responder:
-
-> **“Quem é responsável por acordar, reconectar e reconciliar esse dispositivo após uma queda de energia?”**
-
-Se a resposta **não for SmartThings**, então o SmartThings **não deve ser o Source of Truth** desse dispositivo.
-
 ---
 
 ### 4.2 Hub Nova Digital (Tuya)
 - Bridge Zigbee → Matter para **atuadores**
-- Fonte de verdade para tomadas, interruptores, lâmpadas e fechaduras Zigbee Tuya
+- Fonte de verdade para atuadores Tuya Zigbee
 - **Proibido** para sensores sleepy
 
 ### 4.3 Home Assistant (Supervised)
 - Camada de integração local
 - Hospeda Zigbee2MQTT, MQTT e LocalTuya
-- Observabilidade, troubleshooting e bridges especializadas
-- **Não é** a plataforma principal de automação da casa
+- Observabilidade e bridges especializadas
+- **Não é** a plataforma principal de automação
 
 ### 4.4 Zigbee2MQTT
 - Controle exclusivo de sensores sleepy e cortinas a bateria
-- Fonte de verdade Zigbee para esses dispositivos
 
 ### 4.5 MQTT
 - Backbone de eventos desacoplado
 
-### 4.6 Bridge Matter (ex.: Matterbridge)
-- Exposição de sensores do domínio MQTT/Z2M ao SmartThings
-- Opera exclusivamente em LAN com mDNS/multicast funcional
+### 4.6 Bridge Matter
+- Exposição de sensores Z2M/MQTT ao SmartThings
+- Operação exclusiva em LAN com mDNS/multicast funcional
 
 ---
 
 ## 5. Matriz de Decisão por Tipo de Dispositivo
 
-| Tipo de Dispositivo | Canal Preferencial | Observações |
-|--------------------|------------------|-------------|
-| Tomadas | ST direto / Matter Nova Digital | Avaliar cloud vs local |
-| Interruptores | Matter Nova Digital | Atuador contínuo |
-| Lâmpadas | Matter Nova Digital | |
-| Fechaduras | Matter Nova Digital | Dispositivo crítico |
-| Sensores de porta | Z2M → MQTT → Bridge Matter | Sleepy |
-| Sensores de presença | Z2M → MQTT → Bridge Matter | |
-| Cortinas a bateria | Z2M → MQTT → Bridge Matter | |
-| Tuya Wi-Fi | LocalTuya (HA) | Opcional expor ao ST |
-| Tapo (exemplo) | ST direto | Integração cloud estável |
+| Tipo | Canal Preferencial | Observações |
+|----|------------------|-------------|
+| Tomadas | ST direto / Matter ND | Avaliar cloud vs local |
+| Interruptores | Matter ND | Atuador contínuo |
+| Lâmpadas | Matter ND | |
+| Fechaduras | Matter ND | Crítico |
+| Sensores de porta | Z2M → MQTT → Bridge | Sleepy |
+| Presença | Z2M → MQTT → Bridge | |
+| Cortinas bateria | Z2M → MQTT → Bridge | |
+| Tuya Wi-Fi | LocalTuya (HA) | Opcional |
+| Tapo | ST direto | Cloud estável |
 
 ---
 
 ## 6. Catálogo de Integrações Diretas no SmartThings
+
+### Objetivo do Capítulo
+
+Este capítulo registra conscientemente todas as integrações realizadas **diretamente no SmartThings**, fora dos fluxos padronizados, garantindo controle arquitetural e rastreabilidade de decisões.
+
+> 📌 Todo dispositivo integrado diretamente no SmartThings **deve constar neste catálogo**.
+
+### Catálogo
 
 | Fabricante | Tipo | Canal | Natureza | Observações |
 |-----------|------|-------|----------|-------------|
@@ -177,43 +187,71 @@ Se a resposta **não for SmartThings**, então o SmartThings **não deve ser o S
 
 ## 7. Decisões Arquiteturais (ADR-lite)
 
-### ADR-01 — Sensores sleepy fora do Hub Nova Digital
-Motivo: instabilidade pós-queda de energia.
-
-### ADR-02 — MQTT como backbone de sensores
-Motivo: desacoplamento e resiliência.
-
-### ADR-03 — ST-first para integrações maduras
-Motivo: simplicidade operacional.
+- **ADR-01:** Sensores sleepy fora do Hub Nova Digital  
+- **ADR-02:** MQTT como backbone de sensores  
+- **ADR-03:** ST-first para integrações maduras  
 
 ---
 
 ## 8. Runbook Operacional
 
 ### Ordem de boot pós-queda de energia
-1. Roteador / Internet
-2. Home Assistant + MQTT
-3. Bridge Matter
-4. Hub Nova Digital
-5. SmartThings
+1. Roteador / Internet  
+2. Home Assistant + MQTT  
+3. Bridge Matter  
+4. Hub Nova Digital  
+5. SmartThings  
 
 ### Regras de ouro
-- Nunca parear o mesmo dispositivo em dois hubs
-- Nunca misturar sensores sleepy em bridges cloud instáveis
+- Nunca parear um dispositivo em dois hubs
+- Nunca misturar sensores sleepy em bridges cloud
 - Validar mDNS/multicast após alterações de rede
 
 ---
 
 ## 9. Checklist Oficial — Integração de Novo Dispositivo
 
-*(mantido conforme versão anterior)*
+### 9.1 Identificação
+- [ ] Tipo do dispositivo
+- [ ] Atuador ou sensor sleepy
+- [ ] Alimentação (energia / bateria)
+- [ ] Dispositivo crítico? (sim/não)
+
+### 9.2 Integração nativa no SmartThings?
+- [ ] Sim → integrar direto no ST
+- [ ] Não → continuar avaliação
+
+### 9.3 Suporte a Matter?
+- [ ] Sim → avaliar ST direto ou Hub Nova Digital
+- [ ] Não → continuar avaliação
+
+### 9.4 Sensor sleepy ou a bateria?
+- [ ] Sim → Z2M → MQTT → Bridge Matter
+- [ ] Não → avaliar LocalTuya / integração local
+
+### 9.5 Source of Truth
+- [ ] Dono definido
+- [ ] Garantido que não será pareado em outro hub
+
+### 9.6 Classificação da integração
+- [ ] Local / Edge
+- [ ] Cloud
+- [ ] Dependência de internet aceita
+
+### 9.7 Registro
+- [ ] Atualizar catálogo
+- [ ] Atualizar diagrama
+- [ ] Registrar ADR se necessário
 
 ---
 
 ## 10. Governança e Evolução
 
-Este manifesto é um **documento vivo** e deve ser revisado sempre que houver mudanças relevantes de infraestrutura ou integração.
+Este manifesto é um **documento vivo** e deve ser revisado:
+- Após mudanças relevantes de infraestrutura
+- Com a evolução do padrão Matter
+- Quando falhas recorrentes indicarem desalinhamento arquitetural
 
-Qualquer decisão que viole princípios ou contratos aqui definidos deve ser tratada como **quebra arquitetural** e registrada.
+Decisões que violem este manifesto são consideradas **quebra arquitetural** e devem ser registradas.
 
 ---
