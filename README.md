@@ -79,7 +79,7 @@ A figura abaixo representa a **arquitetura atual conforme este manifesto**, evid
 - os diferentes canais de entrada (Matter, Bridge, integrações diretas)
 - a separação clara de responsabilidades (Source of Truth)
 
-![Arquitetura alvo da casa inteligente](./arquitetura-alvo.png)
+![Arquitetura alvo da casa inteligente](./docs/arquitetura/arquitetura-alvo.png)
 
 ---
 
