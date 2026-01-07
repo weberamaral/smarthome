@@ -87,7 +87,7 @@ A figura abaixo representa a **arquitetura atual conforme este manifesto**, evid
 - diferentes canais de entrada (Matter, Bridge, integrações diretas)
 - separação clara de responsabilidades (Source of Truth)
 
-![Arquitetura alvo da casa inteligente](./docs/arquitetura/arquitetura-alvo.png)
+![Arquitetura alvo da casa inteligente](./docs/arquitetura/arquitetura-alvo-v1.png)
 
 > Observação: a camada de voz (Alexa) deve ser entendida como **interface sobre o SmartThings**, evitando integrações paralelas diretas.
 
