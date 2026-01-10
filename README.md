@@ -1,7 +1,7 @@
 # Manifesto da Arquitetura de Casa Inteligente
 **Plataforma principal: SmartThings**
 
-Versão: **1.6**  
+Versão: **1.7**  
 Status: **Vivo**  
 Última atualização: **2026-01-04**
 
@@ -219,10 +219,11 @@ Seu papel é:
 
 ### Catálogo
 
-| Fabricante | Tipo | Canal | Natureza | Observações |
-|-----------|------|-------|----------|-------------|
-| Tapo | Tomada | ST direto | Cloud | Estável |
-| — | — | — | — | — |
+| Fabricante | Tipo | Canal | Natureza | Protocolo | Observações |
+|------------|------|-------|----------|-----------|-------------|
+| Tapo | Tomada | ST direto | Cloud | WiFi |Estável |
+| Moes | Lâmpada | ST direto | Local | Matter | Estável |
+| — | — | — | — | — | - |
 
 ---
 
