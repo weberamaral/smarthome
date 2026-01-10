@@ -223,7 +223,7 @@ Seu papel é:
 |------------|------|-------|----------|-----------|-------------|
 | Tapo | Tomada | ST direto | Cloud | WiFi |Estável |
 | Moes | Lâmpada | ST direto | Local | Matter | Estável |
-| — | — | — | — | — | - |
+| — | — | — | — | — | — |
 
 ---
 
